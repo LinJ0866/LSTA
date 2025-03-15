@@ -54,14 +54,14 @@ class LSTA(nn.Module):
         
 
     def forward(self, sample):
-        img1 = sample['ref_img']
-        img2 = sample['prev_img']
+        img1 = sample['ref_img'].cuda()
+        img2 = sample['prev_img'].cuda()
         feat1 = self.feature_extractor(img1)[0]
         feat2 = self.feature_extractor(img2)[0]
         memory_features_list = [feat1, feat2]
         pred_list = []
         for i in range(len(sample['curr_img'])):
-            img = sample['curr_img'][i]
+            img = sample['curr_img'][i].cuda()
             feat = self.feature_extractor(img)[0]
 
             q = self.projection_curr(feat)

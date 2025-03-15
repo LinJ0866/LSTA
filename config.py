@@ -8,7 +8,7 @@ class Configuration():
             self.EXP_NAME = EXP_NAME
         else:
             self.EXP_NAME = 'rn101_ytb_FTM_TLA_KD_emb64'
-        self.DIR_ROOT = './'
+        self.DIR_ROOT = './runs'
         self.DIR_DATA = os.path.join(self.DIR_ROOT, 'data')
         self.DIR_DAVIS =  os.path.join(self.DIR_DATA, 'DAVIS')
         self.DIR_YTB =  os.path.join(self.DIR_DATA, 'YTB/train')
@@ -30,7 +30,7 @@ class Configuration():
         self.global_func = "stm" # ftm
         self.local_func = "cat" # tpa
 
-        self.DATASETS = ['youtubevos', 'davis2017']
+        # self.DATASETS = ['youtubevos', 'davis2017']
         self.DATA_WORKERS = 4
         self.DATA_RANDOMCROP = (465, 465)
         self.DATA_RANDOMFLIP = 0.5
@@ -47,7 +47,7 @@ class Configuration():
 
         self.PRETRAIN = True
         self.PRETRAIN_FULL = False
-        self.PRETRAIN_MODEL = "pretrained/resnet101-deeplabv3p.pth.tar"
+        self.PRETRAIN_MODEL = "pretrained/resnet101-deeplabv3p.pth"
 
         self.MODEL_BACKBONE = 'resnet'
         self.MODEL_ATTENTION_DIM = 64

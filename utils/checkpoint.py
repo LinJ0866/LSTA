@@ -29,7 +29,7 @@ def load_network(net, pretrained_dir, gpu):
     pretrained = torch.load(
         pretrained_dir, 
         map_location=torch.device("cuda:"+str(gpu)))
-    pretrained_dict = pretrained['state_dict']
+    pretrained_dict = pretrained
     model_dict = net.state_dict()
     pretrained_dict_update = {}
     pretrained_dict_remove = []

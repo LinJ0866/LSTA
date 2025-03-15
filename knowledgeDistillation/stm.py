@@ -270,7 +270,7 @@ class STM(nn.Module):
         for arg in B_list.keys():
             B_[arg] = torch.cat(B_list[arg], dim=0)
 
-        r4, _, _, _, _ = self.Encoder_M(B_['f'], B_['m'], B_['o'])
+        r4, _, _, _, _ = self.Encoder_M(B_['f'].cuda(), B_['m'].cuda(), B_['o'].cuda())
         k4, v4 = self.KV_M_r4(r4) # num_objects, 128 and 512, H/16, W/16
         k4, v4 = self.Pad_memory([k4, v4], num_objects=num_objects, K=K)
         return k4, v4
@@ -290,7 +290,7 @@ class STM(nn.Module):
         # pad
         [frame], pad = pad_divide_by([frame], 16, (frame.size()[2], frame.size()[3]))
 
-        r4, r3, r2, _, _ = self.Encoder_Q(frame)
+        r4, r3, r2, _, _ = self.Encoder_Q(frame.cuda())
         k4, v4 = self.KV_Q_r4(r4)   # 1, dim, H/16, W/16
         
         # expand to ---  no, c, h, w

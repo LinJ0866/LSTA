@@ -183,6 +183,153 @@ class VOS_Train(Dataset):
 
         return sample
 
+class VSOD_Train(VOS_Train):
+    def __init__(self, 
+            data_root,
+            imglistdic,
+            transform=None,
+            rgb=False,
+            repeat_time=1,
+            rand_gap=3,
+            curr_len=3,
+            rand_reverse=True
+            ):
+        self.data_root = data_root
+        self.rand_gap = rand_gap
+        self.curr_len = curr_len
+        self.rand_reverse = rand_reverse
+        self.repeat_time = repeat_time
+        self.transform = transform
+        self.rgb = rgb
+        self.imglistdic = imglistdic
+        self.seqs = list(self.imglistdic.keys())
+        # print('Video num: {}'.format(len(self.seqs)))
+    
+    def get_image_label(self, seqname, imagelist, lablist, index):
+        image = cv2.imread(os.path.join(self.data_root, seqname, imagelist[index]))
+        image = np.array(image, dtype=np.float32)
+        if self.rgb:
+            image = image[:, :, [2, 1, 0]]
+
+        label = Image.open(os.path.join(self.data_root, seqname, lablist[index]))
+        label = np.array(label, dtype=np.uint8)
+        if label.ndim == 3:
+            label = label[:, :, 0]
+
+        return image, label
+    
+    def get_ref_index_v2(self, seqname, lablist, min_fg_pixels=200, max_try=5):
+        for _ in range(max_try):
+            ref_index = np.random.randint(len(lablist))
+            ref_label = Image.open(os.path.join(self.data_root, seqname, lablist[ref_index]))
+            ref_label = np.array(ref_label, dtype=np.uint8)
+            if ref_label.ndim == 3:
+                ref_label = ref_label[:, :, 0]
+            xs, ys = np.nonzero(ref_label)
+            if len(xs) > min_fg_pixels:
+                break
+        return ref_index
+
+class VSOD_rdvs_trn(VSOD_Train):
+    def __init__(self, 
+            split=['train'],
+            root='./',
+            transform=None,
+            rgb=False,
+            repeat_time=1,
+            rand_gap=3,
+            curr_len=3,
+            rand_reverse=True
+            ):
+        data_dir = os.path.join(root, 'RDVS/train')
+        seq_names = os.listdir(data_dir)
+
+        imglistdic = {}
+        for seq_name in seq_names:
+            video_path = os.path.join(data_dir, seq_name)
+            frames = os.listdir(os.path.join(video_path, 'rgb'))
+            frames = sorted(frames)
+            images = [os.path.join('rgb', frame) for frame in frames]
+            labels = [os.path.join('ground-truth', frame.replace('.jpg', '.png')) for frame in frames]
+            imglistdic[seq_name] = (images, labels)
+
+        super(VSOD_rdvs_trn, self).__init__(
+                                        data_dir,
+                                        imglistdic,
+                                        transform,
+                                        rgb,
+                                        repeat_time,
+                                        rand_gap,
+                                        curr_len,
+                                        rand_reverse)
+
+class VSOD_vidsod100_trn(VSOD_Train):
+    def __init__(self, 
+            split=['train'],
+            root='./',
+            transform=None,
+            rgb=False,
+            repeat_time=1,
+            rand_gap=3,
+            curr_len=3,
+            rand_reverse=True
+            ):
+        data_dir = os.path.join(root, 'vidsod_100/train')
+        seq_names = os.listdir(data_dir)
+
+        imglistdic = {}
+        for seq_name in seq_names:
+            video_path = os.path.join(data_dir, seq_name)
+            frames = os.listdir(os.path.join(video_path, 'rgb'))
+            frames = sorted(frames)
+            images = [os.path.join('rgb', frame) for frame in frames]
+            labels = [os.path.join('gt', frame.replace('.jpg', '.png')) for frame in frames]
+            imglistdic[seq_name] = (images, labels)
+
+        super(VSOD_vidsod100_trn, self).__init__(
+                                        data_dir,
+                                        imglistdic,
+                                        transform,
+                                        rgb,
+                                        repeat_time,
+                                        rand_gap,
+                                        curr_len,
+                                        rand_reverse)
+        
+class VSOD_dvisal_trn(VSOD_Train):
+    def __init__(self, 
+            split=['train'],
+            root='./',
+            transform=None,
+            rgb=False,
+            repeat_time=1,
+            rand_gap=3,
+            curr_len=3,
+            rand_reverse=True
+            ):
+        data_dir = os.path.join(root, 'DViSal_dataset/data')
+        with open(os.path.join(data_dir, '../', 'train.txt'), mode='r') as f:
+            seq_names = set(f.read().splitlines())
+
+        imglistdic = {}
+        for seq_name in seq_names:
+            video_path = os.path.join(data_dir, seq_name)
+            frames = os.listdir(os.path.join(video_path, 'RGB'))
+            frames = sorted(frames)
+            images = [os.path.join('RGB', frame) for frame in frames]
+            labels = [os.path.join('GT', frame.replace('.jpg', '.png')) for frame in frames]
+            imglistdic[seq_name] = (images, labels)
+
+        super(VSOD_dvisal_trn, self).__init__(
+                                        data_dir,
+                                        imglistdic,
+                                        transform,
+                                        rgb,
+                                        repeat_time,
+                                        rand_gap,
+                                        curr_len,
+                                        rand_reverse)
+
 class DAVIS2017_Train(VOS_Train):
     def __init__(self, 
             split=['train'],

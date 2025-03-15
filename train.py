@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms 
 
 import config as cfg_
-from dataloaders.datasets import DAVIS2017_Train, YOUTUBE_VOS_Train, TEST
+from dataloaders.datasets import DAVIS2017_Train, YOUTUBE_VOS_Train, TEST, VSOD_rdvs_trn, VSOD_vidsod100_trn, VSOD_dvisal_trn
 import dataloaders.custom_transforms as tr
 from utils.meters import AverageMeter
 from utils.checkpoint import load_network_and_optimizer, load_network, save_network
@@ -47,13 +47,14 @@ def main():
     parser.add_argument('--config', type=str, default='configs.resnet101_cfbi')
 
     parser.add_argument('--start_gpu', type=int, default=0)
-    parser.add_argument('--gpu_num', type=int, default=-1)
-    parser.add_argument('--batch_size', type=int, default=-1)
-    parser.add_argument('--local_rank', type=int, default=-1)
+    parser.add_argument('--gpu_num', type=int, default=1)
+    parser.add_argument('--batch_size', type=int, default=1)
+    parser.add_argument('--local_rank', type=int, default=0)
 
     parser.add_argument('--pretrained_path', type=str, default='')
 
-    parser.add_argument('--datasets', nargs='+', type=str, default=['youtubevos'])
+    parser.add_argument('--data_root', type=str, default='./data')
+    parser.add_argument('--datasets', nargs='+', type=str, default=[])
     parser.add_argument('--lr', type=float, default=-1.)
     parser.add_argument('--total_step', type=int, default=-1.)
     parser.add_argument('--start_step', type=int, default=-1.)
@@ -62,7 +63,7 @@ def main():
 
     args = parser.parse_args()
 
-    cfg = cfg_.Configuration(args.exp_name)
+    cfg = cfg_.Configuration(args.datasets[0])
     
     # if args.exp_name != '':
     #     cfg.EXP_NAME = args.exp_name
@@ -101,35 +102,65 @@ def main():
         # tr.aug_heavy(),
         tr.ToTensor()])
     train_datasets = []
-    if 'davis2017' in cfg.DATASETS:
-        print_log("loading DAVIS17...")
-        train_davis_dataset = DAVIS2017_Train(
-            root=cfg.DIR_DAVIS, 
-            full_resolution=cfg.TRAIN_DATASET_FULL_RESOLUTION,
+    if 'rdvs' in args.datasets:
+        print_log("loading RDVS...")
+        train_rdvs_dataset = VSOD_rdvs_trn(
+            root=args.data_root, 
             transform=composed_transforms, 
             repeat_time=cfg.DATA_DAVIS_REPEAT,
             curr_len=cfg.DATA_CURR_SEQ_LEN,
             rand_gap=cfg.DATA_RANDOM_GAP_DAVIS,
             rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ)
-        train_datasets.append(train_davis_dataset)
-    if 'youtubevos' in cfg.DATASETS:
-        print_log("loading YouTube-VOS...")
-        train_ytb_dataset = YOUTUBE_VOS_Train(
-            root=cfg.DIR_YTB, 
-            transform=composed_transforms,
+        train_datasets.append(train_rdvs_dataset)
+    if 'vidsod_100' in args.datasets:
+        print_log("loading vidsod_100...")
+        train_vid_dataset = VSOD_vidsod100_trn(
+            root=args.data_root, 
+            transform=composed_transforms, 
+            repeat_time=cfg.DATA_DAVIS_REPEAT,
             curr_len=cfg.DATA_CURR_SEQ_LEN,
-            rand_gap=cfg.DATA_RANDOM_GAP_YTB,
-            rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ,
-            single=cfg.DATA_SINGLE)
-        if cfg.DATA_SINGLE:
-            print_log("using only sigle object video")
-        train_datasets.append(train_ytb_dataset)
-    if 'test' in cfg.DATASETS:
-        print_log("loading evaluation set...")
-        test_dataset = TEST(
-            transform=composed_transforms,
-            curr_len=cfg.DATA_CURR_SEQ_LEN)
-        train_datasets.append(test_dataset)
+            rand_gap=cfg.DATA_RANDOM_GAP_DAVIS,
+            rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ)
+        train_datasets.append(train_vid_dataset)
+    if 'dvisal' in args.datasets:
+        print_log("loading dvisal...")
+        train_dvisal_dataset = VSOD_dvisal_trn(
+            root=args.data_root, 
+            transform=composed_transforms, 
+            repeat_time=cfg.DATA_DAVIS_REPEAT,
+            curr_len=cfg.DATA_CURR_SEQ_LEN,
+            rand_gap=cfg.DATA_RANDOM_GAP_DAVIS,
+            rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ)
+        train_datasets.append(train_dvisal_dataset)
+    # if 'davis2017' in cfg.DATASETS:
+    #     print_log("loading DAVIS17...")
+    #     train_davis_dataset = DAVIS2017_Train(
+    #         root=cfg.DIR_DAVIS, 
+    #         full_resolution=cfg.TRAIN_DATASET_FULL_RESOLUTION,
+    #         transform=composed_transforms, 
+    #         repeat_time=cfg.DATA_DAVIS_REPEAT,
+    #         curr_len=cfg.DATA_CURR_SEQ_LEN,
+    #         rand_gap=cfg.DATA_RANDOM_GAP_DAVIS,
+    #         rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ)
+    #     train_datasets.append(train_davis_dataset)
+    # if 'youtubevos' in cfg.DATASETS:
+    #     print_log("loading YouTube-VOS...")
+    #     train_ytb_dataset = YOUTUBE_VOS_Train(
+    #         root=cfg.DIR_YTB, 
+    #         transform=composed_transforms,
+    #         curr_len=cfg.DATA_CURR_SEQ_LEN,
+    #         rand_gap=cfg.DATA_RANDOM_GAP_YTB,
+    #         rand_reverse=cfg.DATA_RANDOM_REVERSE_SEQ,
+    #         single=cfg.DATA_SINGLE)
+    #     if cfg.DATA_SINGLE:
+    #         print_log("using only sigle object video")
+    #     train_datasets.append(train_ytb_dataset)
+    # if 'test' in cfg.DATASETS:
+    #     print_log("loading evaluation set...")
+    #     test_dataset = TEST(
+    #         transform=composed_transforms,
+    #         curr_len=cfg.DATA_CURR_SEQ_LEN)
+    #     train_datasets.append(test_dataset)
     if len(train_datasets) > 1:
         train_dataset = torch.utils.data.ConcatDataset(train_datasets)
     elif len(train_datasets) == 1:
