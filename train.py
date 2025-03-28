@@ -17,7 +17,7 @@ import config as cfg_
 from dataloaders.datasets import DAVIS2017_Train, YOUTUBE_VOS_Train, TEST, VSOD_rdvs_trn, VSOD_vidsod100_trn, VSOD_dvisal_trn
 import dataloaders.custom_transforms as tr
 from utils.meters import AverageMeter
-from utils.checkpoint import load_network_and_optimizer, load_network, save_network
+from utils.checkpoint import load_network_and_optimizer, load_network_trn, save_network
 from utils.learning import adjust_learning_rate, get_trainable_params
 from utils.metric import pytorch_iou
 from networks.nets import LSTA
@@ -270,7 +270,7 @@ def main():
         epoch = int(np.ceil(step / len(trainloader)))
         print_log('Resume from step {}'.format(step))
     elif cfg.PRETRAIN:
-        model, removed_dict = load_network(model, cfg.PRETRAIN_MODEL, local_rank)
+        model, removed_dict = load_network_trn(model, cfg.PRETRAIN_MODEL, local_rank)
         print_log('Load pretrained VOS model from {}.'.format(cfg.PRETRAIN_MODEL))
         print_log('Remove {} from checkpoint.'.format(removed_dict))
     ################################################################################

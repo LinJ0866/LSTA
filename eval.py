@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import transforms 
 import numpy as np
-from dataloaders.datasets import YOUTUBE_VOS_Test, DAVIS_Test, EVAL_TEST,YTO_Test,ViSal_Test, FBMS_Test
+from dataloaders.datasets import ANY_VSOD_Test
 import dataloaders.custom_transforms as tr
 
 
@@ -40,33 +40,10 @@ class Evaluator(object):
 
     def process_pretrained_model(self):
         cfg = self.cfg
-        if cfg.TEST_CKPT_PATH == 'test':
-            self.ckpt = 'test'
-            self.print_log('Test evaluation.')
-            return
-        if cfg.TEST_CKPT_PATH is None:
-            if cfg.TEST_CKPT_STEP is not None:
-                ckpt = str(cfg.TEST_CKPT_STEP)
-            else:
-                ckpts = os.listdir(cfg.DIR_CKPT)
-                if len(ckpts) > 0:
-                    ckpts = list(map(lambda x: int(x.split('_')[-1].split('.')[0]), ckpts))
-                    ckpt = np.sort(ckpts)[-1]
-                else:
-                    self.print_log('No checkpoint in {}.'.format(cfg.DIR_CKPT))
-                    exit()
-            self.ckpt = ckpt
-            cfg.TEST_CKPT_PATH = os.path.join(cfg.DIR_CKPT, 'save_step_%s.pth' % ckpt)
-            self.model, removed_dict = load_network(self.model, cfg.TEST_CKPT_PATH, self.gpu)
-            if len(removed_dict) > 0:
-                self.print_log('Remove {} from pretrained model.'.format(removed_dict))
-            self.print_log('Load latest checkpoint from {}'.format(cfg.TEST_CKPT_PATH))
-        else:
-            self.ckpt = 'unknown'
-            self.model, removed_dict = load_network(self.model, cfg.TEST_CKPT_PATH, self.gpu)
-            if len(removed_dict) > 0:
-                self.print_log('Remove {} from pretrained model.'.format(removed_dict))
-            self.print_log('Load checkpoint from {}'.format(cfg.TEST_CKPT_PATH))
+        self.model, removed_dict = load_network(self.model, cfg.TEST_CKPT_PATH, self.gpu)
+        if len(removed_dict) > 0:
+            self.print_log('Remove {} from pretrained model.'.format(removed_dict))
+        self.print_log('Load latest checkpoint from {}'.format(cfg.TEST_CKPT_PATH))
 
     def prepare_dataset(self):
         cfg = self.cfg
@@ -75,75 +52,21 @@ class Evaluator(object):
             tr.MultiRestrictSize(cfg.TEST_MIN_SIZE, cfg.TEST_MAX_SIZE, cfg.TEST_FLIP, cfg.TEST_MULTISCALE), 
             tr.MultiToTensor()])
         
-        eval_name = '{}_{}_ckpt_{}'.format(cfg.TEST_DATASET, cfg.EXP_NAME, self.ckpt)
-        if cfg.TEST_FLIP:
-            eval_name += '_flip'
-        if len(cfg.TEST_MULTISCALE) > 1:
-            eval_name += '_ms'
+        # eval_name = '{}_{}_ckpt_{}'.format(cfg.TEST_DATASET, cfg.EXP_NAME, self.ckpt)
+        # if cfg.TEST_FLIP:
+        #     eval_name += '_flip'
+        # if len(cfg.TEST_MULTISCALE) > 1:
+        #     eval_name += '_ms'
 
-        if cfg.TEST_DATASET == 'youtubevos':
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-            self.dataset = YOUTUBE_VOS_Test(
-                root=cfg.DIR_YTB_EVAL, 
-                transform=eval_transforms,  
-                result_root=self.result_root)
+        self.dataset = ANY_VSOD_Test(
+            root=cfg.TEST_DATASET_ROOT,
+            dataset=cfg.TEST_DATASET,
+            transform=eval_transforms)
 
-        elif cfg.TEST_DATASET == 'davis2017':
-            resolution = 'Full-Resolution' if cfg.TEST_DATASET_FULL_RESOLUTION else '480p'
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations', resolution)
-            self.dataset = DAVIS_Test(
-                split=cfg.TEST_DATASET_SPLIT, 
-                root=cfg.DIR_DAVIS, 
-                year=2017, 
-                transform=eval_transforms,
-                full_resolution=cfg.TEST_DATASET_FULL_RESOLUTION, 
-                result_root=self.result_root)
-
-        elif cfg.TEST_DATASET == 'davis2016':
-            resolution = 'Full-Resolution' if cfg.TEST_DATASET_FULL_RESOLUTION else '480p'
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations', resolution)
-            self.dataset = DAVIS_Test(
-                split=cfg.TEST_DATASET_SPLIT, 
-                root=cfg.DIR_DAVIS, 
-                year=2016, 
-                transform=eval_transforms,
-                full_resolution=cfg.TEST_DATASET_FULL_RESOLUTION, 
-                result_root=self.result_root)
-        elif cfg.TEST_DATASET == 'yto':
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-            #root='./YTO',transform=None, rgb=False, result_root=None
-            print("loading youtube objects.")
-            self.dataset = YTO_Test(
-                root=cfg.DIR_YTO_EVAL, 
-                transform=eval_transforms,
-                result_root=self.result_root)
-        elif cfg.TEST_DATASET == "ViSal":
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-            #root='./YTO',transform=None, rgb=False, result_root=None
-            print("loading visal data.")
-            self.dataset = ViSal_Test(
-                root=cfg.DIR_VISAL_EVAL, 
-                transform=eval_transforms,
-                result_root=self.result_root)
-
-        elif cfg.TEST_DATASET == "FBMS":
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-            #root='./YTO',transform=None, rgb=False, result_root=None
-            print("loading FBMS data.")
-            self.dataset = FBMS_Test(
-                root=cfg.DIR_FBMS_EVAL, 
-                transform=eval_transforms,
-                result_root=self.result_root)
-        elif cfg.TEST_DATASET == 'test':
-            self.result_root = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-            self.dataset = EVAL_TEST(eval_transforms, self.result_root)
-        else:
-            print('Unknown dataset!')
-            exit()
-
-        print('Eval {} on {}:'.format(cfg.EXP_NAME, cfg.TEST_DATASET))
-        self.source_folder = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, eval_name, 'Annotations')
-        self.zip_dir = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, '{}.zip'.format(eval_name))
+        # print('Eval {} on {}:'.format(cfg.EXP_NAME, cfg.TEST_DATASET))
+        self.result_root = os.path.join(os.path.dirname(cfg.TEST_CKPT_PATH), '../', 'output')
+        print(self.result_root)
+        # self.zip_dir = os.path.join(cfg.DIR_EVALUATION, cfg.TEST_DATASET, '{}.zip'.format(eval_name))
         if not os.path.exists(self.result_root):
             os.makedirs(self.result_root)
         self.print_log('Done!')
@@ -159,6 +82,9 @@ class Evaluator(object):
         for seq_idx, seq_dataset in enumerate(self.dataset):
             video_num += 1
             seq_name = seq_dataset.seq_name
+            if not os.path.exists(os.path.join(self.result_root, seq_name)):
+                os.makedirs(os.path.join(self.result_root, seq_name))
+            
             print('Prcessing Seq {} [{}/{}]:'.format(seq_name, video_num, total_video_num))
             torch.cuda.empty_cache()
 
@@ -188,8 +114,8 @@ class Evaluator(object):
                             seq_total_time += one_frametime
                             seq_total_frame += 1
                             obj_num = obj_num[0].item()
-                            print('Frame: {}, Obj Num: {}, Time: {}'.format(imgname[0], obj_num, one_frametime))
-                            save_mask(pred_label, os.path.join(self.result_root, seq_name, imgname[0].split('.')[0]+'.png'))
+                            # print('Frame: {}, Obj Num: {}, Time: {}'.format(imgname[0], obj_num, one_frametime))
+                            # save_mask(pred_label, os.path.join(self.result_root, seq_name, imgname[0].split('.')[0]+'.png'))
                         # fisrt N-1 frames feature extraction
                         mem_features = self.model.forward_mem(samples[0]['current_img'].cuda(self.gpu))
                         feat_list.append(mem_features)
@@ -233,16 +159,13 @@ class Evaluator(object):
                                 seq_total_time += one_frametime
                                 seq_total_frame += 1
                                 obj_num = obj_num[0].item()
-                                print('Frame: {}, Obj Num: {}, Time: {}'.format(imgname[0], obj_num, one_frametime))
+                                # print('Frame: {}, Obj Num: {}, Time: {}'.format(imgname[0], obj_num, one_frametime))
                                 
-                                save_mask(pred_label, os.path.join(self.result_root, seq_name, imgname[0].split('.')[0]+'.png'))
+                                # save_mask(pred_label, os.path.join(self.result_root, seq_name, imgname[0].split('.')[0]+'.png'))
                             # fisrt N-1 frames feature extraction
                             mem_features = self.model.forward_mem(samples[0]['current_img'].cuda(self.gpu))
                             feat_list.append(mem_features)
-                            if frame_idx == 0:
-                                pass
-                            else:
-                                frame_names.append(samples[0]['meta']['current_name'][0])
+                            frame_names.append(samples[0]['meta']['current_name'][0])
                             continue
 
                         elif frame_idx+1 == cfg.MODEL_MAX_MEM:
@@ -277,7 +200,11 @@ class Evaluator(object):
                                 # import pdb; pdb.set_trace()
                                 for j in range(len(all_preds)):
                                     pred_label = F.interpolate(all_preds[j],size=(ori_height,ori_width),mode='bilinear', align_corners=True)
-                                    pred_label = torch.argmax(torch.softmax(pred_label, dim=1), dim=1).long()
+                                    pred_label = torch.softmax(pred_label, dim=1)
+                                    pred_label = torch.argmax(pred_label, dim=1)
+                                    print(pred_label.shape)
+                                    print(torch.max(pred_label), torch.min(pred_label))
+                                    exit(0)
                                     # pred_label = (torch.sigmoid(pred_label) >THRESHOLD).long()
                                     pred_label = pred_label.squeeze()
                                     one_frametime = (time.time() - time_start)/len(all_preds)
@@ -300,7 +227,7 @@ class Evaluator(object):
                                 # Save result
                                 save_mask(pred_label, os.path.join(self.result_root, seq_name, imgname[0].split('.')[0]+'.png'))
                         else:# multi-scale
-                            raise NotImplementedError
+                            raise NotImplementedError                    
             seq_avg_time_per_frame = seq_total_time / seq_total_frame
             total_time += seq_total_time
             total_frame += seq_total_frame
@@ -310,7 +237,7 @@ class Evaluator(object):
             print("Seq {} FPS: {}, Total FPS: {}, FPS per Seq: {}".format(seq_name, 1./seq_avg_time_per_frame, 1./total_avg_time_per_frame, 1./avg_sfps))
 
         # zip_folder(self.source_folder, self.zip_dir)
-        self.print_log('Save result to {}.'.format(self.zip_dir))
+        # self.print_log('Save result to {}.'.format(self.zip_dir))
         
 
     def print_log(self, string):
@@ -326,8 +253,8 @@ def main():
     parser.add_argument('--gpu_id', type=int, default=0)
 
     parser.add_argument('--ckpt_path', type=str, default='')
-    parser.add_argument('--ckpt_step', type=int, default=-1)
 
+    parser.add_argument('--data_root', type=str, default='/home/linj/workspace/vsod/datasets')
     parser.add_argument('--dataset', type=str, default='')
 
     parser.add_argument('--flip', action='store_true')
@@ -352,11 +279,10 @@ def main():
 
     if args.ckpt_path != '':
         cfg.TEST_CKPT_PATH = args.ckpt_path
-    if args.ckpt_step > 0:
-        cfg.TEST_CKPT_STEP = args.ckpt_step
 
     if args.dataset != '':
         cfg.TEST_DATASET = args.dataset
+        cfg.TEST_DATASET_ROOT = args.data_root
 
     cfg.TEST_FLIP = args.flip
     cfg.TEST_MULTISCALE = args.ms

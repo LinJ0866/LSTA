@@ -821,3 +821,112 @@ class FBMS_Test(object):
                                transform=self.transform, rgb=self.rgb, single_obj=self.single_obj)
         return seq_dataset
 
+class VSOD_Test(Dataset):
+    def __init__(self, root, label_rgb, label_gt, seq_name, rgb=False, transform=None, single_obj=True):
+        self.root = root
+        self.label_rgb = label_rgb
+        self.label_gt = label_gt
+        self.seq_name = seq_name
+        self.obj_num = 1
+
+        rgb_path = os.path.join(root, seq_name, label_rgb)
+        gt_path = os.path.join(root, seq_name, label_gt)
+        frames = os.listdir(rgb_path)
+        frames = sorted(frames)
+        self.images = [os.path.join(rgb_path, frame) for frame in frames]
+        self.gts = [os.path.join(gt_path, frame.replace('.jpg', '.png')) for frame in frames]
+        
+        self.num_frame = len(self.images)
+        self.transform = transform
+        self.rgb = rgb
+        self.single_obj = single_obj
+
+        # self.obj_nums = []
+        # temp_obj_num = 0
+        # for img_name in self.images:
+        #     self.obj_nums.append(temp_obj_num)
+        #     current_label_name = img_name.split('.')[0] + '.png'
+        #     if current_label_name in self.labels:
+        #         current_label = self.read_label(current_label_name)
+        #         if temp_obj_num < np.unique(current_label)[-1]:
+        #             temp_obj_num = np.unique(current_label)[-1]
+
+    def __len__(self):
+        return len(self.images)
+
+    def read_image(self, idx):
+        img_path = self.images[idx]
+        img = cv2.imread(img_path)
+        img = np.array(img, dtype=np.float32)
+
+        if self.rgb:
+            img = img[:, :, [2, 1, 0]]
+        return img
+
+    def read_label(self, idx):
+        label_path = self.gts[idx]
+        label = Image.open(label_path)
+        label = np.array(label, dtype=np.uint8)
+        label = (label > 0).astype(np.uint8)
+        if label.ndim == 3:
+            label = label[:, :, 0]
+        return label
+
+    def __getitem__(self, idx):
+        img_name = self.images[idx]
+        current_img = self.read_image(idx)
+        height, width, channels = current_img.shape
+        # current_label_name = img_name.split('.')[0] + '.png'
+        # obj_num = self.obj_nums[idx]
+
+        # if current_label_name in self.labels:
+        #     current_label = self.read_label(current_label_name)
+        #     sample = {'current_img':current_img, 'current_label':current_label}
+        # else:
+        current_label = self.read_label(idx)
+        sample = {'current_img': current_img, 'current_label':current_label}
+        
+        sample['meta'] = {'seq_name':self.seq_name, 'frame_num':self.num_frame, 'obj_num': 1,
+                          'current_name':os.path.basename(img_name), 'height':height, 'width':width, 'flip':False}
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample
+
+class ANY_VSOD_Test(object):
+    def __init__(self, root='./valid', dataset=None, transform=None):
+        self.transform = transform
+        if dataset == 'rdvs':
+            self.lable_rgb = 'rgb'
+            self.lable_depth = 'Depth'
+            self.lable_gt = 'ground-truth'
+
+            self.data_dir = os.path.join(root, 'RDVS/test')
+        elif dataset == 'vidsod_100':
+            self.lable_rgb = 'rgb'
+            self.lable_depth = 'depth'
+            self.lable_gt = 'gt'
+            
+            self.data_dir = os.path.join(root, 'vidsod_100/test')
+        elif dataset == 'dvisal':
+            self.lable_rgb = 'RGB'
+            self.lable_depth = 'Depth'
+            self.lable_gt = 'GT'
+
+            self.data_dir = os.path.join(root, 'DViSal_dataset/data')
+        else:
+            raise 'dataset is not support now.'
+        
+        if dataset == 'dvisal':
+            with open(os.path.join(self.data_dir, '../test_all.txt'), mode='r') as f:
+                self.seqs = set(f.read().splitlines())
+        else:
+            self.seqs = os.listdir(self.data_dir)
+
+    def __len__(self):
+        return len(self.seqs)
+
+    def __getitem__(self, idx):
+        seq_name = self.seqs[idx]
+        seq_dataset = VSOD_Test(self.data_dir, self.lable_rgb, self.lable_gt, seq_name, transform=self.transform)
+        return seq_dataset

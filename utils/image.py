@@ -26,9 +26,9 @@ def save_image(image, path):
     im.save(path)
 
 def save_mask(mask_tensor, path):
-    mask = mask_tensor.cpu().numpy().astype('uint8')
-    mask = Image.fromarray(mask).convert('P')
-    mask.putpalette(_palette)
+    mask = mask_tensor.cpu().numpy().astype('uint8') * 255
+    mask = Image.fromarray(mask).convert('L')
+    # mask.putpalette(_palette)
     mask.save(path)
 
 def flip_tensor(tensor, dim=0):
